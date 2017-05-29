@@ -14,6 +14,7 @@ local function rotate(fname, outname, theta)
     local w_start, h_start = torch.floor((full_side-w)/2), torch.floor((full_side-h)/2)
     local w_end, h_end =  torch.floor((full_side+w)/2), torch.floor((full_side+h)/2)
     pad_img[{{1,3}, {h_start,h_end-1}, {w_start,w_end-1}}] = img
+    -- Rotate
     local rotated = image.rotate(pad_img, theta, 'bilinear')
     -- Crop img only
     local crop_start, crop_end = torch.floor((full_side-side)/2), torch.floor((full_side+side)/2)
