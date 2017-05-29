@@ -3,7 +3,7 @@ require 'image'
 local function rotate(fname, outname, theta)
     local img = image.load(fname, 3, 'float')
     local w, h = img:size(3), img:size(2)
-    local side = w*math.sin(theta) + math.abs(h*math.cos(theta))
+    local side = math.max(math.abs(w*math.sin(theta)) + math.abs(h*math.cos(theta)), math.abs(w*math.cos(theta)) + math.abs(h*math.sin(theta)))
     local full_side = math.sqrt(2) * side
     local img_mean = img:mean(2):mean(3):reshape(3)
     -- Padding w/ img mean
@@ -24,4 +24,12 @@ local function rotate(fname, outname, theta)
     return
 end
 
-rotate('000000.JPEG', '000000_rotated2.JPEG', 0.7854*3)
+rotate('000000.JPEG', '000000_rotated1.JPEG', 1*math.pi/4)
+rotate('000000.JPEG', '000000_rotated2.JPEG', 2*math.pi/4)
+rotate('000000.JPEG', '000000_rotated3.JPEG', 3*math.pi/4)
+rotate('000000.JPEG', '000000_rotated4.JPEG', 4*math.pi/4)
+rotate('000000.JPEG', '000000_rotated5.JPEG', 5*math.pi/4)
+rotate('000000.JPEG', '000000_rotated6.JPEG', 6*math.pi/4)
+rotate('000000.JPEG', '000000_rotated7.JPEG', 7*math.pi/4)
+rotate('000000.JPEG', '000000_rotated8.JPEG', 8*math.pi/4)
+rotate('000000.JPEG', '000000_rotated_neg.JPEG', -math.pi/4)
