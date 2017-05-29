@@ -1,6 +1,6 @@
 require 'image'
 
-local function rotate(fname, theta)
+local function rotate(fname, outname, theta)
     local img = image.load(fname, 3, 'float')
     local w, h = img:size(3), img:size(2)
     local side = w*math.sin(theta) + math.abs(h*math.cos(theta))
@@ -18,8 +18,9 @@ local function rotate(fname, theta)
     -- Crop img only
     local crop_start, crop_end = torch.floor((full_side-side)/2), torch.floor((full_side+side)/2)
     rotated = image.crop(rotated, crop_start, crop_start, crop_end, crop_end) -- Note: the last 2 indices are non-inclusive
-    image.save('out.jpg', rotated)
+    -- Save to file
+    image.save(outname, rotated)
     return
 end
 
-rotate('000000.JPEG', 0.7854)
+rotate('000000.JPEG', '000000_rotated2.JPEG', 0.7854*3)
