@@ -32,7 +32,7 @@ local function perspect(fname, outname, x,y,z)
     local img_coor = torch.Tensor(2, w*h)
     img_coor[1] = torch.cdiv(new_homo_coor[1], new_homo_coor[3])
     img_coor[2] = torch.cdiv(new_homo_coor[2], new_homo_coor[3])
-    img_coor:apply(torch.floor)
+    img_coor:apply(torch.round)
 
     -- Set new img pixels
     local new_size = math.max(torch.max(img_coor[1])- torch.min(img_coor[1])+1, torch.max(img_coor[2])- torch.min(img_coor[2])+1)
@@ -52,9 +52,9 @@ local function perspect(fname, outname, x,y,z)
     return
 end
 
-perspect('000000.JPEG', '000000_ps1.JPEG', 1*math.pi/4, 0, 0)
-perspect('000000.JPEG', '000000_ps2.JPEG', 0, 1*math.pi/4, 0)
-perspect('000000.JPEG', '000000_ps3.JPEG', math.pi/4, math.pi/3, 0)
-perspect('000000.JPEG', '000000_ps4.JPEG', 0,0,1*math.pi/3)
+perspect('000000.JPEG', '000000_ps1_round.JPEG', 1*math.pi/4, 0, 0)
+perspect('000000.JPEG', '000000_ps2_round.JPEG', 0, 1*math.pi/4, 0)
+perspect('000000.JPEG', '000000_ps3_round.JPEG', math.pi/4, math.pi/3, 0)
+perspect('000000.JPEG', '000000_ps4_round.JPEG', 0,0,1*math.pi/3)
 -- rotate('000000.JPEG', '000000_rotated2.JPEG', 2*math.pi/4)
 -- rotate('000000.JPEG', '000000_rotated3.JPEG', 3*math.pi/4)
