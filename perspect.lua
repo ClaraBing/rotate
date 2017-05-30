@@ -53,5 +53,8 @@ local function perspect(fname, outname, x,y,z)
 end
 
 perspect('000000.JPEG', '000000_ps1.JPEG', 1*math.pi/4, 0, 0)
+perspect('000000.JPEG', '000000_ps2.JPEG', 0, 1*math.pi/4, 0)
+perspect('000000.JPEG', '000000_ps3.JPEG', math.pi/4, math.pi/3, 0)
+perspect('000000.JPEG', '000000_ps4.JPEG', 0,0,1*math.pi/3)
 -- rotate('000000.JPEG', '000000_rotated2.JPEG', 2*math.pi/4)
 -- rotate('000000.JPEG', '000000_rotated3.JPEG', 3*math.pi/4)
