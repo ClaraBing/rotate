@@ -1,60 +1,72 @@
 require 'image'
 
-local function perspect(fname, outname, x,y,z)
-    local img = image.load(fname, 3, 'float')
-    local img_mean = img:mean(2):mean(3):reshape(3)
+-- Perspective change from coordinates
+local function coor(img, src, dst)
+    -- Obtain 3x3 transformation matrix
+    local A, B = torch.FloatTensor(8,8), torch.FloatTensor(8)
     local w, h = img:size(3), img:size(2)
-    local f = 2*(w+h)
-
-    -- Calculate the camera projection mtrx:  K * [R | T]
-    local sinx, cosx, siny, cosy, sinz, cosz = math.sin(x), math.cos(x), math.sin(y), math.cos(y), math.sin(z), math.cos(z)
-    local RT = torch.Tensor({
-        {cosz*cosy, cosz*siny*sinx-sinz*cosx, cosz*siny*cosx+sinz*sinx, 0},
-        {sinz*cosy, sinz*siny*sinx+cosz*cosx, sinz*siny*cosx-cosz*sinx, 0},
-        {-siny, cosy*sinx, cosy*cosx, f}
-    })
-    local K = torch.Tensor({{f,0,0},{0,f,0},{0,0,1}})
-
-    -- Set homogeneous 3D coordinates
-    local orig_homo_coor = torch.Tensor(4, w*h)
-    local offset_w, offset_h = math.ceil(w/2), math.ceil(h/2)
-    local w_idx = torch.range(1,w) - offset_w
-    local h_idx = torch.range(1,h) - offset_h
-    for i = 1, w do
-        orig_homo_coor[{{1}, {(i-1)*h+1, i*h}}] = w_idx[i]
-        orig_homo_coor[{{2}, {(i-1)*h+1, i*h}}] = h_idx
+    for i = 1,4 do
+        A[i][1], A[i][2], A[i][3] = src[i][1], src[i][2], 1
+        A[i][4], A[i][5], A[i][6] = 0,0,0
+        A[i][7], A[i][8] = -src[i][1]*dst[i][1], -src[i][2]*dst[i][1]
+        A[i+4][1], A[i+4][2], A[i+4][3] = 0,0,0
+        A[i+4][4], A[i+4][5], A[i+4][6] = src[i][1], src[i][2], 1
+        A[i+4][7], A[i+4][8] = -src[i][1]*dst[i][2], -src[i][2]*dst[i][2]
+        B[i] = dst[i][1]
+        B[i+4] = dst[i][2]
     end
-    orig_homo_coor[3] = 0
-    orig_homo_coor[4] = 1
+    local X = torch.gesv(B, A):reshape(8)
+    local M = torch.inverse(torch.cat(X, torch.FloatTensor({1})):reshape(3,3))
+    
+    -- Calculate src coor for sampling
+    local src_xmin, src_xmax = torch.min(src[{{},{1}}]), torch.max(src[{{},{1}}])
+    local src_ymin, src_ymax = torch.min(src[{{},{2}}]), torch.max(src[{{},{2}}])
+    local xmin, xmax = torch.min(dst[{{},{1}}]), torch.max(dst[{{},{1}}])
+    local ymin, ymax = torch.min(dst[{{},{2}}]), torch.max(dst[{{},{2}}])
+    local dst_h, dst_w = xmax-xmin+1, ymax-ymin+1
+    local dst_homo = torch.FloatTensor(3,dst_w*dst_h)
+    for dx = 0,dst_h-1 do
+        for dy = 0,dst_w-1 do
+            dst_homo[1][1+dy + dx*dst_w] = xmin+dx
+            dst_homo[2][1+dy + dx*dst_w] = ymin+dy
+            dst_homo[3][1+dy + dx*dst_w] = 1
+        end
+    end
+    local src_homo = M * dst_homo
+    local src_coor = torch.Tensor(2, dst_w*dst_h)
+    src_coor[1] = torch.cdiv(src_homo[1], src_homo[3])
+    src_coor[2] = torch.cdiv(src_homo[2], src_homo[3])
+    src_coor = torch.round(src_coor)
 
-    -- Calculate resulting 2D coordinates
-    local new_homo_coor = K*RT * orig_homo_coor
-    local img_coor = torch.Tensor(2, w*h)
-    img_coor[1] = torch.cdiv(new_homo_coor[1], new_homo_coor[3])
-    img_coor[2] = torch.cdiv(new_homo_coor[2], new_homo_coor[3])
-    img_coor:apply(torch.round)
-
-    -- Set new img pixels
-    local new_size = math.max(torch.max(img_coor[1])- torch.min(img_coor[1])+1, torch.max(img_coor[2])- torch.min(img_coor[2])+1)
-    local new_offset_w, new_offset_h = torch.min(img_coor[1]), torch.min(img_coor[2])
-    local new_img = torch.FloatTensor(3, new_size, new_size)
-    new_img[1] = img_mean[1]
-    new_img[2] = img_mean[2]
-    new_img[3] = img_mean[3]
-    for i = 1, w*h do
-        local pixel_val = img[{{},{orig_homo_coor[2][i]+offset_h},{orig_homo_coor[1][i]+offset_w}}]
-        new_img[{{},{img_coor[2][i]-new_offset_h+1},{img_coor[1][i]-new_offset_w+1}}] = pixel_val
-        -- new_img[{{},{img_coor[i][2]-new_offset_h+1},{img_coor[i][1]-new_offset_w+1}}] = img[{{},{orig_homo_coor[i][2]+offset_h},{orig_homo_coor[i][1]+offset_w}}]
+    -- Set result image
+    local result = torch.FloatTensor(3, dst_h, dst_w):zero() + 0.6
+    for dx = 0,dst_h-1 do
+        for dy = 0,dst_w-1 do
+            local src_x, src_y = src_coor[1][1+dy + dx*dst_w], src_coor[2][1+dy + dx*dst_w]
+            if src_x>=src_xmin and src_x<=src_xmax and src_y>=src_ymin and src_y<=src_ymax then
+                local val = img[{{}, {src_x-src_xmin+1}, {src_y-src_ymin+1}}]
+                result[{{},{dx+1},{dy+1}}] = val -- img[{{}, {src_x-src_xmin+1}, {src_y-src_ymin+1}}]
+            end
+        end
     end
 
-    -- Save to file
-    image.save(outname, new_img)
-    return
+    return result
 end
 
-perspect('000000.JPEG', '000000_ps1_round.JPEG', 1*math.pi/4, 0, 0)
-perspect('000000.JPEG', '000000_ps2_round.JPEG', 0, 1*math.pi/4, 0)
-perspect('000000.JPEG', '000000_ps3_round.JPEG', math.pi/4, math.pi/3, 0)
-perspect('000000.JPEG', '000000_ps4_round.JPEG', 0,0,1*math.pi/3)
--- rotate('000000.JPEG', '000000_rotated2.JPEG', 2*math.pi/4)
--- rotate('000000.JPEG', '000000_rotated3.JPEG', 3*math.pi/4)
+
+local img = image.load('000000.JPEG')
+local w, h = img:size(3), img:size(2)
+-- In this example, the 4 vertices of the image are arranged counter-clockwise, starting from the bottom left; (0,0) is the image center.
+local src = torch.IntTensor(4,2)
+src[1][1], src[1][2] = 1+torch.floor(-h/2), 1+torch.floor(-w/2)
+src[2][1], src[2][2] = torch.floor(h/2), 1+torch.floor(-w/2)
+src[3][1], src[3][2] = torch.floor(h/2), torch.floor(w/2)
+src[4][1], src[4][2] = 1+torch.floor(-h/2), torch.floor(w/2)
+local dst = torch.IntTensor(4,2)
+dst[1][1], dst[1][2] = src[1][1], torch.floor(src[1][2]/2)
+dst[2][1], dst[2][2] = src[2][1], src[2][2]
+dst[3][1], dst[3][2] = torch.floor(src[3][1]/2), src[3][2]
+dst[4][1], dst[4][2] = torch.floor(src[4][1]/2), torch.floor(src[4][2]/2)
+
+local warped = coor(img, src, dst)
+image.save('coor_test.jpg', warped)
