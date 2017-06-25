@@ -6,7 +6,7 @@ local function rotate(img, theta)
 
     -- Find output img size
     local side = math.max(math.abs(w*math.sin(theta)) + math.abs(h*math.cos(theta)), math.abs(w*math.cos(theta)) + math.abs(h*math.sin(theta)))
-    local full_side = math.sqrt(2) * side
+    local full_side = 2 * side -- math.sqrt(2) * side
     -- Padding w/ img mean
     local pad_img = torch.FloatTensor(3, full_side, full_side)
     pad_img[1] = img_mean[1]
