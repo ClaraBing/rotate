@@ -55,18 +55,21 @@ end
 
 
 local img = image.load('000000.JPEG')
+-- In this example, the 4 vertices of the image are arranged counter-clockwise, starting from the top left corner.
+-- (0,0) is the image center; x-axis points downwards and y-axis points to the right.
 local w, h = img:size(3), img:size(2)
--- In this example, the 4 vertices of the image are arranged counter-clockwise, starting from the bottom left; (0,0) is the image center.
+-- Source coordinates
 local src = torch.IntTensor(4,2)
 src[1][1], src[1][2] = 1+torch.floor(-h/2), 1+torch.floor(-w/2)
 src[2][1], src[2][2] = torch.floor(h/2), 1+torch.floor(-w/2)
 src[3][1], src[3][2] = torch.floor(h/2), torch.floor(w/2)
 src[4][1], src[4][2] = 1+torch.floor(-h/2), torch.floor(w/2)
+-- Destination coordinates
 local dst = torch.IntTensor(4,2)
-dst[1][1], dst[1][2] = src[1][1], torch.floor(src[1][2]/2)
+dst[1][1], dst[1][2] = src[1][1], src[1][2]
 dst[2][1], dst[2][2] = src[2][1], src[2][2]
-dst[3][1], dst[3][2] = torch.floor(src[3][1]/2), src[3][2]
-dst[4][1], dst[4][2] = torch.floor(src[4][1]/2), torch.floor(src[4][2]/2)
+dst[3][1], dst[3][2] = src[3][1], src[3][2]
+dst[4][1], dst[4][2] = 3*torch.floor(src[4][1]/2), 3*torch.floor(src[4][2]/2)
 
 local warped = coor(img, src, dst)
-image.save('coor_test.jpg', warped)
+image.save('coor_test4.jpg', warped)
